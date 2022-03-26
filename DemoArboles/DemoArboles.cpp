@@ -401,6 +401,7 @@ struct ARBOLPERSONAS {
         calcularEquilibrios(RAIZ);
     }
     void lista2Arbol(PERSONA* listaDoble) {
+        eliminarArbol();
         PERSONA* persona = listaDoble;
         while (persona != NULL) {
             agregarNodo(persona);
