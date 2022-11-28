@@ -7,6 +7,40 @@ using namespace std;
 //#define strcpy_s(x,y,z) strcpy(x,z)
 //#define _stricmp(x,y) strcmp(x,y)
 
+struct NSTACK {
+    void* p1 = NULL;
+    void* p2 = NULL;
+    void* ret = NULL;
+    NSTACK* next = NULL;
+};
+struct DSTACK {
+    NSTACK* front = NULL;
+    void push(void* p1, void* p2, void* ret) {
+        if (front == NULL) {
+            front = new NSTACK;
+            front->next = NULL;
+        } else {
+            NSTACK* temp = new NSTACK;
+            temp->next = front;
+            front = temp;
+        }
+        front->p1 = p1;
+        front->p2 = p2;
+        front->ret = ret;
+    }
+    void *pop(void **p1, void **p2) {
+        if (p1 != NULL)
+            *p1 = front->p1;
+        if (p2 != NULL)
+            *p2 = front->p2;
+        void *res = front->ret;
+        NSTACK* temp = front;
+        front = front->next;
+        delete temp;
+        return res;
+    }
+};
+
 struct PERSONA {
     char nombre[255] = { '\0' };
     int edad = 0;
@@ -491,6 +525,28 @@ struct ARBOLPERSONAS {
         imprimirNodos(RAIZ, 0);
         cout << "\t--FIN--" << endl;
     }
+    string recorridoInfijoReporteHeapWhile(NODOARBOLPERSONA* nodo) {
+        DSTACK stack;
+        string *result = new string("");
+        // si el nodo actual es nulo y la stack también está vacía, hemos terminado
+        while (stack.front != NULL || nodo != NULL) {
+            // si el nodo actual existe, empujarlo a la stack (diferirlo)
+            // y pasar a su hijo izquierdo
+            if (nodo != NULL) {
+                stack.push((void*)nodo, NULL, (void*)result);
+                nodo = nodo->IZQUIERDO;
+            } else {
+                // de lo contrario, si el nodo actual es nulo, saque un elemento de la stack,
+                // imprimirlo, y finalmente establecer el nodo actual en su hijo derecho
+                result = (string *)stack.pop((void**)&nodo, NULL);
+                result->append(nodo->PER->getDataPersona() + " \n\r\n\r");
+                nodo = nodo->DERECHO;
+            }
+        }
+        string res(result->c_str());
+        delete result;
+        return res;
+    }
     string recorridoInfijoReporteHeap(NODOARBOLPERSONA* nodo) {
         if (nodo == NULL)
             return "";
@@ -525,7 +581,8 @@ int main(int arg, char** argv) {
     listaPersonas.agregarPersona("Alondra", 19, 50, 4);
     arbolPersonas.lista2Arbol(listaPersonas.ORIGEN);
     cout << endl << endl;
-    cout << arbolPersonas.recorridoInfijoReporteHeap(arbolPersonas.RAIZ);
+//    cout << arbolPersonas.recorridoInfijoReporteHeap(arbolPersonas.RAIZ);
+    cout << arbolPersonas.recorridoInfijoReporteHeapWhile(arbolPersonas.RAIZ);
     arbolPersonas.recorridoInfijo2Lista(arbolPersonas.RAIZ, &listaHeap);
     listaHeap.imprimirPersonas();
     cout << endl << endl;
