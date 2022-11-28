@@ -1,15 +1,17 @@
-#include <iostream>
+ï»¿#include <iostream>
 #include <string>
+#include <cstring>
 
 using namespace std;
 
+//#define strcpy_s(x,y,z) strcpy(x,z)
+//#define _stricmp(x,y) strcmp(x,y)
+
 struct PERSONA {
-    char nombre[255] = {'\0'};
+    char nombre[255] = { '\0' };
     int edad = 0;
     float peso = 0;
     int idPersona = 0;
-    PERSONA* siguiente = NULL;
-    PERSONA* anterior = NULL;
     void setNombre(string nombre) {
         strcpy_s(this->nombre, 255, nombre.c_str());
         if (nombre.size() > 255)
@@ -28,72 +30,103 @@ struct PERSONA {
         nuevo->setNombre(nombre);
         nuevo->edad = edad;
         nuevo->peso = peso;
-        nuevo->siguiente = NULL;
-        nuevo->anterior = NULL;
         return nuevo;
     }
+    void imprimirPersonaId() {
+        cout << "(" << idPersona << ", " << getNombre() << ", " << edad << ", " << peso << ")";
+    }
+    string getDataPersona() {
+        return "ID Persona: " + to_string(idPersona) + " Nombre: " + getNombre() + "  Edad: " + to_string(edad) + " Peso: " + to_string(peso);
+    }
+};
+struct NODOPERSONAS {
+    PERSONA* dato = NULL;
+    NODOPERSONAS* anterior = NULL;
+    NODOPERSONAS* siguiente = NULL;
+    static NODOPERSONAS* nuevoNodoPersona(string nombre, int edad, float peso) {
+        PERSONA* nuevo = PERSONA::nuevaPersona(nombre, edad, peso);
+        return nuevoNodoPersona(nuevo);
+    }
+    static NODOPERSONAS* nuevoNodoPersona(PERSONA* nuevo) {
+        NODOPERSONAS* nodo = new NODOPERSONAS;
+        nodo->dato = nuevo;
+        nodo->siguiente = NULL;
+        nodo->anterior = NULL;
+        return nodo;
+    }
     void imprimirPersona() {
-        PERSONA* persona = this;
+        NODOPERSONAS* persona = this;
         if (persona->anterior == NULL)
             cout << "NULL<-";
         else {
-            cout << "(" << persona->anterior->getNombre() << ", " << persona->anterior->edad << ", " << persona->anterior->peso << ")";
+            cout << "(" << persona->anterior->dato->getNombre() << ", " << persona->anterior->dato->edad << ", " << persona->anterior->dato->peso << ")";
             if (persona->anterior->siguiente == persona)
                 cout << " <-> ";
             else cout << " - ";
         }
-        cout << "(" << persona->getNombre() << ", " << persona->edad << ", " << persona->peso << ")";
+        cout << "(" << persona->dato->getNombre() << ", " << persona->dato->edad << ", " << persona->dato->peso << ")";
         if (persona->siguiente == NULL)
             cout << " -> NULL";
         else {
             if (persona->siguiente->anterior == persona)
                 cout << " <-> ";
             else cout << " - ";
-            cout << "(" << persona->siguiente->getNombre() << ", " << persona->siguiente->edad << ", " << persona->siguiente->peso << ")";
+            cout << "(" << persona->siguiente->dato->getNombre() << ", " << persona->siguiente->dato->edad << ", " << persona->siguiente->dato->peso << ")";
         }
-    }
-    void imprimirPersonaId() {
-        cout << "(" << idPersona << ", " << getNombre() << ", " << edad << ", " << peso << ")";
     }
 };
 struct PERSONAS {
-    PERSONA* ORIGEN = NULL;
-    PERSONA* FIN = NULL;
+    NODOPERSONAS* ORIGEN = NULL;
+    NODOPERSONAS* FIN = NULL;
     static int maxId;
     void agregarPersona(string nombre, int edad, float peso) {
         agregarPersona(nombre, edad, peso, 0);
     }
     void agregarPersona(string nombre, int edad, float peso, int idPersona) {
-        PERSONA* nuevo = PERSONA::nuevaPersona(nombre, edad, peso);
+        NODOPERSONAS* nuevo = NODOPERSONAS::nuevoNodoPersona(nombre, edad, peso);
         if (nuevo == NULL) {
             exit(-1);
         }
         agregarPersona(nuevo, idPersona);
     }
-    void agregarPersona(PERSONA* nuevo) {
+    void agregarPersona(NODOPERSONAS* nuevo) {
         agregarPersona(nuevo, 0);
     }
-    void agregarPersona(PERSONA* nuevo, int idPersona) {
+    void agregarPersona(NODOPERSONAS* nuevo, int idPersona) {
         if (idPersona == 0) {
             PERSONAS::maxId++;
-            nuevo->idPersona = PERSONAS::maxId;
-        } else {
-            nuevo->idPersona = idPersona;
+            nuevo->dato->idPersona = PERSONAS::maxId;
+        }
+        else {
+            nuevo->dato->idPersona = idPersona;
             PERSONAS::maxId = PERSONAS::maxId < idPersona ? idPersona : PERSONAS::maxId;
         }
         if (ORIGEN == NULL) {
             ORIGEN = nuevo;
             FIN = nuevo;
-        } else {
+            nuevo->siguiente = NULL;
+            nuevo->anterior = NULL;
+        }
+        else {
             FIN->siguiente = nuevo;
             nuevo->anterior = FIN;
             FIN = nuevo;
+            nuevo->siguiente = NULL;
         }
     }
     PERSONA* buscarPersona(string nombre) {
-        PERSONA* indice = ORIGEN;
+        NODOPERSONAS* indice = ORIGEN;
         while (indice != NULL) {
-            if (_stricmp(nombre.c_str(),indice->nombre) == 0)
+            if (_stricmp(nombre.c_str(), indice->dato->nombre) == 0)
+                return indice->dato;
+            indice = indice->siguiente;
+        }
+        return NULL;
+    }
+    NODOPERSONAS* buscarNodoPersona(string nombre) {
+        NODOPERSONAS* indice = ORIGEN;
+        while (indice != NULL) {
+            if (_stricmp(nombre.c_str(), indice->dato->nombre) == 0)
                 return indice;
             indice = indice->siguiente;
         }
@@ -112,9 +145,11 @@ struct PERSONAS {
         }
         return false;
     }
-    bool eliminarPersona(string nombreBuscar) {
-        PERSONA* persona = buscarPersona(nombreBuscar);
+    PERSONA *eliminarPersona(string nombreBuscar) {
+        NODOPERSONAS* persona = buscarNodoPersona(nombreBuscar);
+        PERSONA *per = NULL;
         if (persona != NULL) {
+            per = persona->dato;
             if (persona->anterior == NULL) {
                 ORIGEN = persona->siguiente;
                 if (persona == FIN) FIN = NULL;
@@ -126,18 +161,17 @@ struct PERSONAS {
                     FIN->siguiente = NULL;
                 delete persona;
             } else {
-                PERSONA* anterior = persona->anterior,
-                       *siguiente = persona->siguiente;
+                NODOPERSONAS* anterior = persona->anterior,
+                    * siguiente = persona->siguiente;
                 anterior->siguiente = siguiente;
                 siguiente->anterior = anterior;
                 delete persona;
             }
-            return true;
         }
-        return false;
+        return per;
     }
     void imprimirPersonas() {
-        PERSONA* indice = this->ORIGEN;
+        NODOPERSONAS* indice = this->ORIGEN;
         cout << "\n\t--INICIO--" << endl;
         if (indice == NULL)
             cout << "NULL" << endl;
@@ -149,29 +183,29 @@ struct PERSONAS {
         cout << "\t--FIN--" << endl;
     }
     void eliminarTodo() {
-        PERSONA* indice = ORIGEN;
+        NODOPERSONAS* indice = ORIGEN;
         while (indice != NULL) {
-            PERSONA* actual = indice;
+            NODOPERSONAS* actual = indice;
             indice = indice->siguiente;
             delete actual;
         }
         ORIGEN = NULL;
         FIN = NULL;
     }
-}listaPersonas;
+}listaPersonas, listaHeap;
 int PERSONAS::maxId = 0;
 
-struct NODOPERSONA {
-    NODOPERSONA* PADRE = NULL;
-    NODOPERSONA* IZQUIERDO = NULL;
-    NODOPERSONA* DERECHO = NULL;
-    PERSONA* PERSONA = NULL;
+struct NODOARBOLPERSONA {
+    NODOARBOLPERSONA* PADRE = NULL;
+    NODOARBOLPERSONA* IZQUIERDO = NULL;
+    NODOARBOLPERSONA* DERECHO = NULL;
+    PERSONA* PER = NULL;
     int balance;
-    static NODOPERSONA* nuevoNodo(struct PERSONA* info) {
-        NODOPERSONA* nuevo = new NODOPERSONA;
+    static NODOARBOLPERSONA* nuevoNodo(struct PERSONA* info) {
+        NODOARBOLPERSONA* nuevo = new NODOARBOLPERSONA;
         if (nuevo == NULL)
             exit(-1);
-        nuevo->PERSONA = info;
+        nuevo->PER = info;
         nuevo->PADRE = NULL;
         nuevo->IZQUIERDO = NULL;
         nuevo->DERECHO = NULL;
@@ -179,18 +213,18 @@ struct NODOPERSONA {
     }
 };
 struct ARBOLPERSONAS {
-    NODOPERSONA* RAIZ = NULL;
+    NODOARBOLPERSONA* RAIZ = NULL;
     bool balanceo = false;
-    /* Rotación Izquierda *
+    /* Rotaciï¿½n Izquierda *
     *  A           B
     * / \         / \
     * a  B ==>   A   c
     *   / \     / \
     *   b  c    a  b
-    * Sólo cambian los factores de balance de los nodos A y B
-    * Los factores de balance de los sub-árboles no cambian. */
-    NODOPERSONA* rotacionIzquierda(NODOPERSONA* t) {
-        NODOPERSONA* temp, *padre = t->PADRE;
+    * Sï¿½lo cambian los factores de balance de los nodos A y B
+    * Los factores de balance de los sub-ï¿½rboles no cambian. */
+    NODOARBOLPERSONA* rotacionIzquierda(NODOARBOLPERSONA* t) {
+        NODOARBOLPERSONA* temp, * padre = t->PADRE;
         int x, y;
         temp = t;
         t = t->DERECHO;
@@ -205,7 +239,7 @@ struct ARBOLPERSONAS {
         return t;
     }
 
-    /* Rotación derecha
+    /* Rotaciï¿½n derecha
     *
     *   A         B
     *  / \       / \
@@ -214,8 +248,8 @@ struct ARBOLPERSONAS {
     * a  b        b   c
     *
     */
-    NODOPERSONA* rotacionDerecha(NODOPERSONA* t) {
-        NODOPERSONA* temp = t, * padre = t->PADRE;
+    NODOARBOLPERSONA* rotacionDerecha(NODOARBOLPERSONA* t) {
+        NODOARBOLPERSONA* temp = t, * padre = t->PADRE;
         int x, y;
         t = t->IZQUIERDO;
         temp->IZQUIERDO = t->DERECHO;
@@ -226,7 +260,7 @@ struct ARBOLPERSONAS {
         t->balance = max(x + 2 + max(y, 0), y + 1); //nB
         return t;
     }
-    int calcularEquilibrios(NODOPERSONA* t) {
+    int calcularEquilibrios(NODOARBOLPERSONA* t) {
         if (t == NULL)
             return 0;
         int eIzquierdo = calcularEquilibrios(t->IZQUIERDO) + 1;
@@ -234,106 +268,116 @@ struct ARBOLPERSONAS {
         t->balance = eDerecho - eIzquierdo;
         return eIzquierdo > eDerecho ? eIzquierdo : eDerecho;
     }
-    NODOPERSONA* buscarNodo(NODOPERSONA* nodo, PERSONA* persona) {
+    NODOARBOLPERSONA* buscarNodo(NODOARBOLPERSONA* nodo, PERSONA* persona) {
         if (nodo == NULL)
             return NULL;
-        if (nodo->PERSONA->idPersona > persona->idPersona)
+        if (nodo->PER->idPersona > persona->idPersona)
             return buscarNodo(nodo->IZQUIERDO, persona);
-        else if (nodo->PERSONA->idPersona < persona->idPersona)
+        else if (nodo->PER->idPersona < persona->idPersona)
             return buscarNodo(nodo->DERECHO, persona);
         return nodo;
     }
-    NODOPERSONA* buscarPersona(PERSONA* persona) {
+    NODOARBOLPERSONA* buscarPersona(PERSONA* persona) {
         return buscarNodo(RAIZ, persona);
     }
-    NODOPERSONA* buscarPersona(int idPersona) {
+    NODOARBOLPERSONA* buscarPersona(int idPersona) {
         PERSONA personaVacia;
         personaVacia.idPersona = idPersona;
         return buscarNodo(RAIZ, &personaVacia);
     }
-    void eliminarNodo(NODOPERSONA** nodo, NODOPERSONA* padre, NODOPERSONA* eliminar) {
-        NODOPERSONA* elemento = *nodo;
-        if (elemento == NULL){
+    void eliminarNodo(NODOARBOLPERSONA** nodo, NODOARBOLPERSONA* padre, NODOARBOLPERSONA* eliminar) {
+        NODOARBOLPERSONA* elemento = *nodo;
+        if (elemento == NULL) {
             this->balanceo = false;
-        } else if (elemento->PERSONA->idPersona < eliminar->PERSONA->idPersona) {
+        }
+        else if (elemento->PER->idPersona < eliminar->PER->idPersona) {
             eliminarNodo(&(elemento->DERECHO), elemento, eliminar);
             elemento->balance -= 1;
-        } else if (elemento->PERSONA->idPersona > eliminar->PERSONA->idPersona) {
+        }
+        else if (elemento->PER->idPersona > eliminar->PER->idPersona) {
             eliminarNodo(&(elemento->IZQUIERDO), elemento, eliminar);
             elemento->balance += 1;
-        } else {
+        }
+        else {
             if (elemento->IZQUIERDO == NULL) {
-                NODOPERSONA* tmp = elemento;
+                NODOARBOLPERSONA* tmp = elemento;
                 (*nodo) = tmp->DERECHO;
                 delete tmp;
                 this->balanceo = true;
                 return;
-            } else if (elemento->DERECHO == NULL) {
-                NODOPERSONA* tmp = elemento;
+            }
+            else if (elemento->DERECHO == NULL) {
+                NODOARBOLPERSONA* tmp = elemento;
                 (*nodo) = tmp->IZQUIERDO;
                 delete tmp;
                 this->balanceo = true;
                 return;
-            } else   /* Tiene dos hijos */ {
+            }
+            else   /* Tiene dos hijos */ {
                 if (elemento->balance < 0) {
                     /* Si cargado a la izquierda, elimina mayor descendiente hijo izq */
-                    NODOPERSONA* tmp = elemento;
+                    NODOARBOLPERSONA* tmp = elemento;
                     tmp = (*nodo)->IZQUIERDO;
                     while (tmp->DERECHO != NULL) tmp = tmp->DERECHO;
-                    (*nodo)->PERSONA = tmp->PERSONA;
+                    (*nodo)->PER = tmp->PER;
                     eliminarNodo(&((*nodo)->DERECHO), (*nodo), tmp);
                     elemento = (*nodo);
                     elemento->balance += 1;
-                } else {
+                }
+                else {
                     /* Si cargado a la derecha, elimina menor descendiente hijo der */
-                    NODOPERSONA* tmp = elemento;
+                    NODOARBOLPERSONA* tmp = elemento;
                     tmp = (*nodo)->IZQUIERDO;
                     while (tmp->IZQUIERDO != NULL) tmp = tmp->IZQUIERDO;
-                    (*nodo)->PERSONA = tmp->PERSONA;
+                    (*nodo)->PER = tmp->PER;
                     eliminarNodo(&((*nodo)->IZQUIERDO), (*nodo), tmp);
                     elemento = (*nodo);
                     elemento->balance -= 1;
                 }
             }
         }
-        /* Mantiene árbol balanceado avl. Sólo una o dos rotaciones por descarte */
+        /* Mantiene ï¿½rbol balanceado avl. Sï¿½lo una o dos rotaciones por descarte */
         if (this->balanceo == true) {
             /* Hay que revisar factores de balance en el ascenso*/
-            if (elemento->balance < -1)  /* Si quedó desbalanceado por la izquierda y dejó de ser AVL */ {
+            if (elemento->balance < -1)  /* Si quedï¿½ desbalanceado por la izquierda y dejï¿½ de ser AVL */ {
                 if (elemento->IZQUIERDO->balance > 0)  /*espejos casos c, d y e */ {
-                    /* Si el hijo izquierdo está cargado a la derecha */
+                    /* Si el hijo izquierdo estï¿½ cargado a la derecha */
                     elemento->IZQUIERDO = rotacionIzquierda(elemento->IZQUIERDO);
                     this->balanceo = true; /*Continuar revisando factores */
-                } else if (elemento->IZQUIERDO->balance == 0)
+                }
+                else if (elemento->IZQUIERDO->balance == 0)
                     this->balanceo = false; /*No debe seguir el rebalance */
                 else
                     this->balanceo = true;/* Debe seguir revisando factores de balance */
                 (*nodo) = rotacionDerecha(*nodo);
-            } else if (elemento->balance > 1)  /* Si quedó desbalaceado por la derecha */ {
+            }
+            else if (elemento->balance > 1)  /* Si quedï¿½ desbalaceado por la derecha */ {
                 if (elemento->DERECHO->balance < 0) {
-                    /* Si hijo derecho está cargado a la izquierda */
+                    /* Si hijo derecho estï¿½ cargado a la izquierda */
                     (*nodo)->DERECHO = rotacionDerecha((*nodo)->DERECHO);
                     this->balanceo = true; //debe seguir revisando. Caso d.
-                } else if (elemento->DERECHO->balance == 0)
+                }
+                else if (elemento->DERECHO->balance == 0)
                     this->balanceo = false; /* No debe seguir el rebalance. Caso c. */
                 else //positivo
                     this->balanceo = true;/* Debe seguir revisando factores de balance. Caso e. */
                 (*nodo) = rotacionIzquierda(*nodo);
-            } else if (elemento->balance == 0) /* Si estaba en +1 ó -1 y queda en cero */
+            }
+            else if (elemento->balance == 0) /* Si estaba en +1 ï¿½ -1 y queda en cero */
                 this->balanceo = true; /* Debe seguir corrigiendo. Caso b.*/
-            else /* Si estaba en cero y queda en -1 ó +1 */
+            else /* Si estaba en cero y queda en -1 ï¿½ +1 */
                 this->balanceo = false; /* No debe seguir rebalanceando. Caso a.*/
         }
     }
     void borrarNodo(PERSONA* eliminar) {
-        NODOPERSONA* nodo = buscarPersona(eliminar);
+        NODOARBOLPERSONA* nodo = buscarPersona(eliminar);
         if (nodo != NULL) {
             calcularEquilibrios(RAIZ);
             eliminarNodo(&RAIZ, NULL, nodo);
         }
     }
-    void insertarNodo(NODOPERSONA** nodo, NODOPERSONA* padre, NODOPERSONA* nuevo) {
-        NODOPERSONA* elemento = *nodo;
+    void insertarNodo(NODOARBOLPERSONA** nodo, NODOARBOLPERSONA* padre, NODOARBOLPERSONA* nuevo) {
+        NODOARBOLPERSONA* elemento = *nodo;
         if (elemento == NULL) {
             *nodo = nuevo;
             elemento = nuevo;
@@ -341,22 +385,24 @@ struct ARBOLPERSONAS {
             nuevo->balance = 0;
             balanceo = true;
             return;
-        } else {
-            if (elemento->PERSONA->idPersona > nuevo->PERSONA->idPersona) {
+        }
+        else {
+            if (elemento->PER->idPersona > nuevo->PER->idPersona) {
                 insertarNodo(&(elemento->IZQUIERDO), elemento, nuevo);
                 elemento->balance -= 1;
-            } else {
+            }
+            else {
                 insertarNodo(&(elemento->DERECHO), elemento, nuevo);
                 elemento->balance += 1;
             }
         }
         if (this->balanceo == true) {
-        /*El código a continuación es el costo adicional para mantener propiedad AVL */
-        /* Mantiene árbol balanceado avl. Sólo una o dos rotaciones por inserción */
+            /*El cï¿½digo a continuaciï¿½n es el costo adicional para mantener propiedad AVL */
+            /* Mantiene ï¿½rbol balanceado avl. Sï¿½lo una o dos rotaciones por inserciï¿½n */
             if (elemento->balance < -1) {
-                /* Quedó desbalanceado por la izquierda. Espejos Casos c y d.*/
+                /* Quedï¿½ desbalanceado por la izquierda. Espejos Casos c y d.*/
                 if (elemento->IZQUIERDO->balance > 0) {
-                    /* Si hijo izquierdo está cargado a la derecha */
+                    /* Si hijo izquierdo estï¿½ cargado a la derecha */
                     elemento->IZQUIERDO = rotacionIzquierda(elemento->IZQUIERDO);
                     elemento->IZQUIERDO->PADRE = elemento;
                     if (elemento->IZQUIERDO->DERECHO != NULL)
@@ -365,16 +411,17 @@ struct ARBOLPERSONAS {
                         elemento->IZQUIERDO->IZQUIERDO->PADRE = elemento->IZQUIERDO;
                 }
                 *nodo = rotacionDerecha(elemento);
-                this->balanceo = false; /* El subárbol no aumenta su altura */
+                this->balanceo = false; /* El subï¿½rbol no aumenta su altura */
                 (*nodo)->PADRE = padre;
                 if ((*nodo)->IZQUIERDO != NULL)
                     (*nodo)->IZQUIERDO->PADRE = (*nodo);
                 if ((*nodo)->DERECHO != NULL)
                     (*nodo)->DERECHO->PADRE = (*nodo);
-            } else if (elemento->balance > 1) {
-                /* Si quedó desbalanceado por la derecha: Casos c y d.*/
+            }
+            else if (elemento->balance > 1) {
+                /* Si quedï¿½ desbalanceado por la derecha: Casos c y d.*/
                 if (elemento->DERECHO->balance < 0) {
-                    /* Si hijo derecho está cargado a la izquierda Caso d.*/
+                    /* Si hijo derecho estï¿½ cargado a la izquierda Caso d.*/
                     elemento->DERECHO = rotacionDerecha(elemento->DERECHO);
                     elemento->DERECHO->PADRE = elemento;
                     if (elemento->DERECHO->IZQUIERDO != NULL)
@@ -383,35 +430,37 @@ struct ARBOLPERSONAS {
                         elemento->DERECHO->DERECHO->PADRE = elemento->DERECHO;
                 }
                 *nodo = rotacionIzquierda(elemento); /* Caso c.*/
-                this->balanceo = false; /* El subárbol no aumenta su altura */
+                this->balanceo = false; /* El subï¿½rbol no aumenta su altura */
                 (*nodo)->PADRE = padre;
                 if ((*nodo)->IZQUIERDO != NULL)
                     (*nodo)->IZQUIERDO->PADRE = (*nodo);
                 if ((*nodo)->DERECHO != NULL)
                     (*nodo)->DERECHO->PADRE = (*nodo);
-            } else if (elemento->balance == 0)/* La inserción lo balanceo */
-                this->balanceo = false; /* El subárbol no aumenta su altura. Caso a*/
-            else /* Quedó desbalanceado con -1 ó +1 Caso b */
+            }
+            else if (elemento->balance == 0)/* La inserciï¿½n lo balanceo */
+                this->balanceo = false; /* El subï¿½rbol no aumenta su altura. Caso a*/
+            else /* Quedï¿½ desbalanceado con -1 ï¿½ +1 Caso b */
                 this->balanceo = true; /* Propaga ascendentemente la necesidad de rebalancear */
         }
     }
     void agregarNodo(PERSONA* info) {
-        NODOPERSONA* nuevo = NODOPERSONA::nuevoNodo(info);
+        NODOARBOLPERSONA* nuevo = NODOARBOLPERSONA::nuevoNodo(info);
         insertarNodo(&RAIZ, NULL, nuevo);
         calcularEquilibrios(RAIZ);
     }
-    void lista2Arbol(PERSONA* listaDoble) {
+    void lista2Arbol(NODOPERSONAS* listaDoble) {
         eliminarArbol();
-        PERSONA* persona = listaDoble;
+        NODOPERSONAS* persona = listaDoble;
         while (persona != NULL) {
-            agregarNodo(persona);
+            agregarNodo(persona->dato);
             persona = persona->siguiente;
         }
     }
-    void eliminarArbolNodos(NODOPERSONA* nodo) {
+    void eliminarArbolNodos(NODOARBOLPERSONA* nodo) {
         if (nodo == NULL) {
             return;
-        } else {
+        }
+        else {
             eliminarArbolNodos(nodo->IZQUIERDO);
             eliminarArbolNodos(nodo->DERECHO);
             delete(nodo);
@@ -421,29 +470,52 @@ struct ARBOLPERSONAS {
         eliminarArbolNodos(RAIZ);
         RAIZ = NULL;
     }
-    void imprimirNodos(NODOPERSONA* nodo, int espacios) {
+    void imprimirNodos(NODOARBOLPERSONA* nodo, int espacios) {
         if (nodo == NULL)
             return;
         string espacio = "";
         for (int i = 0; i < espacios; i++)
             espacio.append(" ");
         cout << espacio << "+";
-        nodo->PERSONA->imprimirPersonaId();
+        nodo->PER->imprimirPersonaId();
         if (nodo->IZQUIERDO != NULL || nodo->DERECHO != NULL) {
             cout << endl << espacio << " |\n";
             imprimirNodos(nodo->IZQUIERDO, espacios + 2);
             imprimirNodos(nodo->DERECHO, espacios + 2);
             cout << espacio << " -\n";
-        } else cout << endl;
+        }
+        else cout << endl;
     }
     void imprimirArbol() {
         cout << "\n\t--INICIO--" << endl;
         imprimirNodos(RAIZ, 0);
         cout << "\t--FIN--" << endl;
     }
-} arbolPersonas;
+    string recorridoInfijoReporteHeap(NODOARBOLPERSONA* nodo) {
+        if (nodo == NULL)
+            return "";
+        string texto = nodo->PER->getDataPersona() + " \n\r\n\r";
+        if (nodo->IZQUIERDO != NULL || nodo->DERECHO != NULL) {
+            texto = recorridoInfijoReporteHeap(nodo->IZQUIERDO) + texto;
+            texto = texto + recorridoInfijoReporteHeap(nodo->DERECHO);
+        }
+        return texto;
+    }
+    void recorridoInfijo2Lista(NODOARBOLPERSONA* nodo, PERSONAS* listaHeap) {
+        if (nodo == NULL)
+            return;
+        if (nodo->IZQUIERDO != NULL || nodo->DERECHO != NULL) {
+            recorridoInfijo2Lista(nodo->IZQUIERDO, listaHeap);
+            listaHeap->agregarPersona(NODOPERSONAS::nuevoNodoPersona(nodo->PER), nodo->PER->idPersona);
+            recorridoInfijo2Lista(nodo->DERECHO , listaHeap);
+        }
+        else
+            listaHeap->agregarPersona(NODOPERSONAS::nuevoNodoPersona(nodo->PER), nodo->PER->idPersona);
+    }
 
-int main(int arg, char **argv){
+}arbolPersonas;
+
+int main(int arg, char** argv) {
     listaPersonas.agregarPersona("Jose", 18, 63, 5);
     listaPersonas.agregarPersona("Edna", 21, 63, 6);
     listaPersonas.agregarPersona("Monse", 20, 50, 7);
@@ -452,6 +524,11 @@ int main(int arg, char **argv){
     listaPersonas.agregarPersona("Adriana", 18, 50, 3);
     listaPersonas.agregarPersona("Alondra", 19, 50, 4);
     arbolPersonas.lista2Arbol(listaPersonas.ORIGEN);
+    cout << endl << endl;
+    cout << arbolPersonas.recorridoInfijoReporteHeap(arbolPersonas.RAIZ);
+    arbolPersonas.recorridoInfijo2Lista(arbolPersonas.RAIZ, &listaHeap);
+    listaHeap.imprimirPersonas();
+    cout << endl << endl;
     listaPersonas.imprimirPersonas();
     arbolPersonas.imprimirArbol();
 
@@ -459,5 +536,14 @@ int main(int arg, char **argv){
 
     arbolPersonas.imprimirArbol();
     arbolPersonas.eliminarArbol();
-    listaPersonas.eliminarTodo();
+    listaHeap.eliminarTodo();
+    NODOPERSONAS* indice = listaPersonas.ORIGEN;
+    while (indice != NULL) {
+        PERSONA* p = indice->dato;
+        NODOPERSONAS* temp = indice;
+        if (p != NULL)
+            delete p;
+        indice = indice->siguiente;
+        delete temp;
+    }
 }
